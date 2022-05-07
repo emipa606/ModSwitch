@@ -1,38 +1,64 @@
+# ModSwitch
+
+![Image](https://i.imgur.com/buuPQel.png)
+
+Update of DoctorVanGogh, Aviuzs mod
+https://steamcommunity.com/sharedfiles/filedetails/?id=1139051045
+
+![Image](https://i.imgur.com/pufA0kM.png)
+
+	
+![Image](https://i.imgur.com/Z4GOv8H.png)
 
 # ModSwitch
 
-[![RimWorld 1.0](https://img.shields.io/badge/RimWorld-1.0-green.svg?style=popout-square)](http://rimworldgame.com/) 
-[![RimWorld 1.1](https://img.shields.io/badge/RimWorld-1.1-green.svg?style=popout-square)](http://rimworldgame.com/) 
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg?style=popout-square)](https://creativecommons.org/licenses/by-nc-sa/4.0/) ![Github Total Downloads](https://img.shields.io/github/downloads-pre/doctorvangogh/modswitch/total.svg?style=popout-square)  [![GitHub Latest Release Version](https://img.shields.io/github/release/doctorvangogh/modswitch.svg?style=popout-square)](../../releases/latest) [![GitHub Latest Pre-Release Version](https://img.shields.io/github/release/doctorvangogh/modswitch/all.svg?style=popout-square)](../../releases)
 
-_A Rimworld mod manager_
+A Rimworld mod manager - allows you to backup &amp; restore your list of active Rimworld mods.
 
-<p align="center"><img alt="Mod Switch" src="https://raw.githubusercontent.com/DoctorVanGogh/ModSwitch/master/About/preview.png" /></p>
-
-Allows you to save and switch between sets of active mods with one click.
-
-Supports importing your sets from ModListBackup.
+Currently implemented features:
 
 
-## Authors & third party acknowledgements
+- Save the current list of active mods
+- Restore a saved list of mods
+- Export/import saved lists of mods
+- Load a ModSet from a savegame
+- Colorize mods in the mod list for better organization
+- 'Copy to local' option for Steam mods - also copies defined settings for the copied mod. *Allows [u]manual[/u] updates of such local copies to the current version on steam.*
+- (Somewhat assisted) installation help for missing mods
+- Search bar for mod list
 
-### Authors
 
-- DoctorVanGogh 
-- Aviuz
-- Proxyer (Japanese Translation)
 
-### Uses [Open Iconic](http://www.useiconic.com/open)
+### https://steamcommunity.com/workshop/filedetails/discussion/1139051045/1496741765124594211/]Known issues
 
-Open Iconic is lisenced under a [MIT license](http://opensource.org/licenses/MIT).
 
-### Powered by ![Harmony](https://github.com/pardeike/Harmony)
 
-<p align="center">
-<img alt="Powered by Harmony" src="https://raw.githubusercontent.com/pardeike/Harmony/master/HarmonyLogo.png" />
-</p>
+- Right click does not work on the *selected* mod. Workaround: Just select (click) *another* mod, then you can right click the previous one as much as you like.
 
-Harmony is lisenced under a [MIT license](https://raw.githubusercontent.com/pardeike/Harmony/master/LICENSE).
 
-## Like my Mods?
-[![Buy me a coffee](https://raw.githubusercontent.com/DoctorVanGogh/Shared/master/Sponsoring/Ko-Fi/buymeacoffee-28.png)](https://ko-fi.com/DoctorVanGogh)
+
+### I'm getting errors - "Help!"
+
+See https://steamcommunity.com/workshop/filedetails/discussion/1139051045/1750150188482250790/]here on how to best get help with any erros.
+
+### Like my Mods?
+
+https://ko-fi.com/DoctorVanGogh]![Image](https://raw.githubusercontent.com/DoctorVanGogh/Shared/master/Sponsoring/Ko-Fi/buymeacoffee-28.png)
+
+
+### Looking for an older version?
+
+Get it from https://github.com/DoctorVanGogh/ModSwitch/releases]github
+
+![Image](https://i.imgur.com/PwoNOj4.png)
+
+
+
+-  See if the the error persists if you just have this mod and its requirements active.
+-  If not, try adding your other mods until it happens again.
+-  Post your error-log using https://steamcommunity.com/workshop/filedetails/?id=818773962]HugsLib and command Ctrl+F12
+-  For best support, please use the Discord-channel for error-reporting.
+-  Do not report errors by making a discussion-thread, I get no notification of that.
+-  If you have the solution for a problem, please post it to the GitHub repository.
+
+

@@ -1,9 +1,8 @@
-﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.1022
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32421.90
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModSwitch", "ModSwitch\ModSwitch.csproj", "{AB2E8E89-3D1D-4E36-A0AE-489B6EBC84A6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModSwitch", "ModSwitch\ModSwitch.csproj", "{B5BF5F02-3CF8-44BC-A889-536EF27737E8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +10,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{AB2E8E89-3D1D-4E36-A0AE-489B6EBC84A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AB2E8E89-3D1D-4E36-A0AE-489B6EBC84A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AB2E8E89-3D1D-4E36-A0AE-489B6EBC84A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AB2E8E89-3D1D-4E36-A0AE-489B6EBC84A6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5BF5F02-3CF8-44BC-A889-536EF27737E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5BF5F02-3CF8-44BC-A889-536EF27737E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5BF5F02-3CF8-44BC-A889-536EF27737E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5BF5F02-3CF8-44BC-A889-536EF27737E8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {0B2A8CCF-105B-4CF3-858F-6CD3FEE2AA7C}
+		SolutionGuid = {787d3c40-b230-404f-840e-69304dfab363}
 	EndGlobalSection
 EndGlobal

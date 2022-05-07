@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.Reflection;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Xml;
 using HarmonyLib;
@@ -13,440 +13,539 @@ using UnityEngine;
 using Verse;
 using Verse.Sound;
 
-namespace DoctorVanGogh.ModSwitch {
-    internal class Settings : ModSettings {
-        private static TipSignal? _tipCreateNew;
-        private static TipSignal? _tipSettings;
-        private static TipSignal? _tipApply;
-        private static TipSignal? _tipUndo;
+namespace DoctorVanGogh.ModSwitch;
 
-        private Vector2 _scrollPosition;
+internal class Settings : ModSettings
+{
+    private static TipSignal? _tipCreateNew;
 
-        private ModSet _undo;
+    private static TipSignal? _tipSettings;
 
-        public ModAttributesSet Attributes = new ModAttributesSet();
-        public List<ModSet> Sets = new List<ModSet>();
+    private static TipSignal? _tipApply;
 
-        public static TipSignal TipSettings => (_tipSettings ?? (_tipSettings = new TipSignal(LanguageKeys.keyed.ModSwitch_Tip_Settings.Translate()))).Value;
+    private static TipSignal? _tipUndo;
 
-        public static TipSignal TipCreateNew => (_tipCreateNew ?? (_tipCreateNew = new TipSignal(LanguageKeys.keyed.ModSwitch_Tip_Create.Translate()))).Value;
+    public static FastInvokeHandler RecacheSelectedModRequirements = MethodInvoker.GetHandler(
+        typeof(Page_ModsConfig).GetMethod("RecacheSelectedModRequirements",
+            BindingFlags.Instance | BindingFlags.NonPublic));
 
-        public static TipSignal TipApply => (_tipApply ?? (_tipApply = new TipSignal(LanguageKeys.keyed.ModSwitch_Tip_Apply.Translate()))).Value;
+    public static readonly FieldInfo fiModWarningsCached =
+        AccessTools.Field(typeof(Page_ModsConfig), "modWarningsCached");
 
-        public static TipSignal TipUndo => (_tipUndo ?? (_tipUndo = new TipSignal(LanguageKeys.keyed.ModSwitch_Tip_Undo.Translate()))).Value;
+    public static AccessTools.FieldRef<Page_ModsConfig, List<string>> Page_ModsConfig_SetModWarningsCached =
+        AccessTools.FieldRefAccess<Page_ModsConfig, List<string>>(fiModWarningsCached);
 
-        public static FastInvokeHandler RecacheSelectedModRequirements = MethodInvoker.GetHandler(typeof(Page_ModsConfig).GetMethod("RecacheSelectedModRequirements", BindingFlags.NonPublic | BindingFlags.Instance));
+    public static AccessTools.FieldRef<Page_ModsConfig, List<string>> Page_ModsConfig_GetModWarningsCached =
+        AccessTools.FieldRefAccess<Page_ModsConfig, List<string>>(fiModWarningsCached);
 
+    public static object[] Empty = Array.Empty<object>();
 
-        private static FieldInfo fiModWarningsCached = AccessTools.Field(typeof(Page_ModsConfig), "modWarningsCached");
-        public static SetterHandler<Page_ModsConfig, List<string>> Page_ModsConfig_SetModWarningsCached =
-            FastAccess.CreateSetterHandler<Page_ModsConfig, List<string>>(fiModWarningsCached);
-        public static GetterHandler<Page_ModsConfig, List<string>> Page_ModsConfig_GetModWarningsCached =
-            FastAccess.CreateGetterHandler<Page_ModsConfig, List<string>>(fiModWarningsCached);
+    private Vector2 _scrollPosition;
 
+    private ModSet _undo;
 
-        public static object[] Empty = new object[0];
+    public ModAttributesSet Attributes = new ModAttributesSet();
 
-        public void DoModsConfigWindowContents(Rect target, Page_ModsConfig page) {
-            target.x += 30f;
+    public List<ModSet> Sets = new List<ModSet>();
 
-            Rect rctApply = new Rect(target.x, target.y, 30f, 30f);
-            if (ExtraWidgets.ButtonImage(rctApply, Assets.Apply, false, TipApply, rctApply.ContractedBy(4)))
-                if (Sets.Count != 0)
-                    Find.WindowStack.Add(
-                        new FloatMenu(
-                            Sets.Select(
-                                    ms => new FloatMenuOption(
-                                        ms.Name,
-                                        () => {
-                                            _undo = ModSet.FromCurrent("undo", this);
-                                            ms.Apply(page);
-                                        }))
-                                .ToList()));
-            Rect rctNew = new Rect(target.x + 30f + 8f, target.y, 30f, 30f);
-            if (ExtraWidgets.ButtonImage(rctNew, Assets.Extract, false, TipCreateNew, rctNew.ContractedBy(4)))
-                Find.WindowStack.Add(
-                    new FloatMenu(
-                        new List<FloatMenuOption> {
-                                                      new FloatMenuOption(
-                                                          LanguageKeys.keyed.ModSwitch_CreateNew.Translate(),
-                                                          () => Find.WindowStack.Add(
-                                                              new Dialog_SetText(
-                                                                  s => {
-                                                                      var set = ModSet.FromCurrent(s, this);
-                                                                      Sets.Add(set);
-#if DEBUG
-                                                                      Log.Message($"Created new set '{set.Name}' with {set.Mods.Count} entries");
-#endif
-                                                                      Mod.WriteSettings();
-                                                                  },
-                                                                  LanguageKeys.keyed.ModSwitch_Create_DefaultName.Translate()
-                                                              ))),
-                                                      new FloatMenuOption(
-                                                          LanguageKeys.keyed.ModSwitch_OverwritExisting.Translate(),
-                                                          () => {
-                                                              if (Sets.Count > 0)
-                                                                  Find.WindowStack.Add(
-                                                                      new FloatMenu(
-                                                                          Sets.Select(
-                                                                                  ms => new FloatMenuOption(
-                                                                                      ms.Name,
-                                                                                      () => {
-                                                                                          if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)
-                                                                                          )
-                                                                                              OverwriteMod(ms);
-                                                                                          else
-                                                                                              Find.WindowStack.Add(
-                                                                                                  Dialog_MessageBox.CreateConfirmation(
-                                                                                                      LanguageKeys.keyed.ModSwitch_OverwritExisting_Confirm
-                                                                                                                  .Translate(ms.Name),
-                                                                                                      () => OverwriteMod(ms),
-                                                                                                      true,
-                                                                                                      LanguageKeys.keyed.ModSwitch_Confirmation_Title
-                                                                                                                  .Translate()
-                                                                                                  ));
-                                                                                      })
-                                                                              )
-                                                                              .ToList()));
-                                                          })
-                                                  }));
-            Rect rctUndo = new Rect(target.x + 2 * (30f + 8f), target.y, 30f, 30f);
-            if (_undo != null)
-                if (ExtraWidgets.ButtonImage(rctUndo, Assets.Undo, false, TipUndo, rctUndo.ContractedBy(4))) {
-                    _undo.Apply(page);
-                    _undo = null;
-                }
-
-            Rect rctSettings = new Rect(350f - 30f, target.y, 30f, 30f);
-            if (ExtraWidgets.ButtonImage(rctSettings, Assets.Settings, false, TipSettings, rctSettings.ContractedBy(4)))
-                Find.WindowStack.Add(new Dialog_ModsSettings_Custom(Mod));
-        }
-
-        public void DoWindowContents(Rect rect) {
-            Listing_Standard list = new Listing_Standard(GameFont.Small) {
-                                                                             ColumnWidth = rect.width
-                                                                         };
-            list.Begin(rect);
-
-            Rect left = list.GetRect(30f).LeftHalf();
-
-            if (Widgets.ButtonText(left, LanguageKeys.keyed.ModSwitch_Import.Translate(), true, false, true))
-                Find.WindowStack.Add(
-                    new FloatMenu(
-                        new List<FloatMenuOption> {
-                                                      new FloatMenuOption(
-                                                          LanguageKeys.keyed.ModSwitch_Import_OpenFolder.Translate(),
-                                                          () => {
-                                                              MS_GenFilePaths.EnsureExportFolderExists();
-
-                                                              Process.Start(MS_GenFilePaths.ModSwitchFolderPath);
-                                                          }
-                                                      ),
-                                                      new FloatMenuOption(
-                                                          LanguageKeys.keyed.ModSwitch_Import_FromFile.Translate(),
-                                                          () => {
-                                                              var options = MS_GenFilePaths.AllExports
-                                                                                           .Select(
-                                                                                               fi => new FloatMenuOption(
-                                                                                                   fi.Name,
-                                                                                                   () => {
-                                                                                                       try {
-                                                                                                           ImportFromExport(fi);
-                                                                                                       } catch (Exception e) {
-                                                                                                           Util.DisplayError(e);
-                                                                                                       }
-                                                                                                   }))
-                                                                                           .ToList();
-
-                                                              if (options.Count != 0)
-                                                                  Find.WindowStack.Add(new FloatMenu(options));
-                                                          }),
-                                                      new FloatMenuOption(
-                                                          LanguageKeys.keyed.ModSwitch_Import_Savegame.Translate(),
-                                                          () => Find.WindowStack.Add(
-                                                              new FloatMenu(
-                                                                  GenFilePaths.AllSavedGameFiles
-                                                                              .Select(fi => new FloatMenuOption(fi.Name, () => ImportFromSave(fi)))
-                                                                              .ToList())
-                                                          )),
-                                                      new FloatMenuOption(
-                                                          @"ModListBackup",
-                                                          () => Find.WindowStack.Add(
-                                                              new Dialog_MessageBox(
-                                                                  LanguageKeys.keyed.ModSwitch_Import_Text.Translate(),
-                                                                  LanguageKeys.keyed.ModSwitch_Import_Choice_Replace.Translate(),
-                                                                  () => ImportModListBackup(true),
-                                                                  LanguageKeys.keyed.ModSwitch_Import_Choice_Append.Translate(),
-                                                                  () => ImportModListBackup(false),
-                                                                  LanguageKeys.keyed.ModSwitch_Confirmation_Title.Translate(),
-                                                                  true
-                                                              ) {
-                                                                    absorbInputAroundWindow = true,
-                                                                    closeOnClickedOutside = true,
-                                                                    doCloseX = true
-                                                                })),
-                                                  }));
-
-#if DEBUG
-            if (list.ButtonTextLabeled("Debug", "ListExisting")) {
-                foreach (var modSet in Sets) {
-                    Log.Message($"ModSet '{modSet.Name}': {modSet}");
-                }
+    public static TipSignal TipSettings
+    {
+        get
+        {
+            var valueOrDefault = _tipSettings.GetValueOrDefault();
+            TipSignal value;
+            if (!_tipSettings.HasValue)
+            {
+                valueOrDefault = new TipSignal("ModSwitch.Tip.Settings".Translate());
+                _tipSettings = valueOrDefault;
+                value = valueOrDefault;
             }
-#endif
-
-            const float scrollbarSize = 16f;
-            const float lineHeight = 30f;
-            const float gapSize = 4f;
-
-            Rect r = list.GetRect(rect.height - list.CurHeight);
-
-            int count = Sets.Count;
-
-            Widgets.BeginScrollView(r, ref _scrollPosition, new Rect(0, 0, r.width - scrollbarSize, count * (lineHeight + gapSize)));
-            Vector2 position = new Vector2();
-
-            int reorderableGroup = ReorderableWidget.NewGroup(
-                (from, to) => {
-                    ReorderModSet(from, to);
-                    SoundDefOf.DragSlider.PlayOneShotOnCamera(null);
-                },
-               ReorderableDirection.Vertical );
-
-            // render each row
-            foreach (ModSet entry in Sets) {
-                position.y = position.y + gapSize;
-
-                Rect line = new Rect(0, position.y, r.width - scrollbarSize, lineHeight);
-
-                entry.DoWindowContents(line, reorderableGroup);
-                position.y += lineHeight;
+            else
+            {
+                value = valueOrDefault;
             }
 
-            Widgets.EndScrollView();
-
-            list.End();
+            return new TipSignal?(value).Value;
         }
+    }
 
-        public override void ExposeData() {
-            Scribe_Collections.Look(ref Sets, false, @"sets", LookMode.Undefined, this);
-            Scribe_Custom.Look<ModAttributesSet, ModAttributes>(ref Attributes, false, @"attributes");
-        }
-
-        private void ImportFromSave(FileInfo fi) {
-
-            void AddModSet(string name, IEnumerable<ModMetaData> mods) {
-                Sets.Add(
-                    new ModSet(this)  {
-                                         Name = name,
-                                         BuildNumber = new Version(VersionControl.VersionStringWithoutRev(ScribeMetaHeaderUtility.loadedGameVersion)).Build,
-                                         Mods = new List<string>(mods.Select(mmd => mmd.FolderName))
-                                     });
-                Mod.WriteSettings();
+    public static TipSignal TipCreateNew
+    {
+        get
+        {
+            var valueOrDefault = _tipCreateNew.GetValueOrDefault();
+            TipSignal value;
+            if (!_tipCreateNew.HasValue)
+            {
+                valueOrDefault = new TipSignal("ModSwitch.Tip.Create".Translate());
+                _tipCreateNew = valueOrDefault;
+                value = valueOrDefault;
+            }
+            else
+            {
+                value = valueOrDefault;
             }
 
+            return new TipSignal?(value).Value;
+        }
+    }
 
-            Scribe.loader.InitLoadingMetaHeaderOnly(fi.FullName);
-            try {
-                ScribeMetaHeaderUtility.LoadGameDataHeader(ScribeMetaHeaderUtility.ScribeHeaderMode.Map, false);
-                Scribe.loader.FinalizeLoading();
+    public static TipSignal TipApply
+    {
+        get
+        {
+            var valueOrDefault = _tipApply.GetValueOrDefault();
+            TipSignal value;
+            if (!_tipApply.HasValue)
+            {
+                valueOrDefault = new TipSignal("ModSwitch.Tip.Apply".Translate());
+                _tipApply = valueOrDefault;
+                value = valueOrDefault;
+            }
+            else
+            {
+                value = valueOrDefault;
+            }
 
-                int suffix = 0;
-                string setname = fi.Name;
-                while (Sets.Any(ms => ms.Name == setname))
-                    setname = $"{fi.Name}_{++suffix}";
+            return new TipSignal?(value).Value;
+        }
+    }
 
-                var modsFromSave = ScribeMetaHeaderUtility.loadedModIdsList
-                                                          .Zip(ScribeMetaHeaderUtility.loadedModNamesList, (id, name) => new {Id = id, Name = name})
-                                                          .Select((t, idx) => new { Id = t.Id, Name = t.Name, Index  = idx});
+    public static TipSignal TipUndo
+    {
+        get
+        {
+            var valueOrDefault = _tipUndo.GetValueOrDefault();
+            TipSignal value;
+            if (!_tipUndo.HasValue)
+            {
+                valueOrDefault = new TipSignal("ModSwitch.Tip.Undo".Translate());
+                _tipUndo = valueOrDefault;
+                value = valueOrDefault;
+            }
+            else
+            {
+                value = valueOrDefault;
+            }
 
+            return new TipSignal?(value).Value;
+        }
+    }
 
-                Log.Message($"Loaded version: '{ScribeMetaHeaderUtility.loadedGameVersion}'");
-                
-                var idAccessor = Util.GetVersionSpecificIdMapping(VersionControl.VersionFromString(VersionControl.VersionStringWithoutRev(ScribeMetaHeaderUtility.loadedGameVersion)));
+    public void DoModsConfigWindowContents(Rect target, Page_ModsConfig page)
+    {
+        target.x += 30f;
+        var rect = new Rect(target.x, target.y, 30f, 30f);
+        if (ExtraWidgets.ButtonImage(rect, Assets.Apply, false, TipApply, rect.ContractedBy(4f)) &&
+            Sets.Count != 0)
+        {
+            Find.WindowStack.Add(new FloatMenu(Sets.Select(ms => new FloatMenuOption(ms.Name, delegate
+            {
+                _undo = ModSet.FromCurrent("undo", this);
+                ms.Apply(page);
+            })).ToList()));
+        }
 
-                var (resolved, unresolved) = ModConfigUtil.TryResolveModsList(
-                    modsFromSave,
-                    idAccessor,
-                    t => t.Id,
-                    (mmd, t) => new {Mod = mmd, Index = t.Index },
-                    (_, t) => new {Name = t.Name, Id = t.Id});
-
-                var loadableMods = resolved.OrderBy(t => t.Index).Select(t => t.Mod);
-
-                StringBuilder sb = new StringBuilder(LanguageKeys.keyed.ModSwitch_MissingMods.Translate(Path.GetFileNameWithoutExtension(fi.Name)));
-                sb.AppendLine();
-                sb.AppendLine();
-                foreach (var item in unresolved)
-                    sb.AppendLine($" - {item.Name} ({item.Id})");
-
-                if (unresolved.Any()) {
-                    Find.WindowStack.Add(
-                        new Dialog_MissingMods(
-                            sb.ToString(),
-                            () => AddModSet(setname, loadableMods),
-                            () => {
-                                // dont know how to open multiple tabs in steam overlay right now - just pop urls to browser ;)
-                                foreach (var mod in unresolved)  {
-                                    string url = Util.BuildWorkshopUrl(mod.Name, mod.Id);
-                                    Process.Start(url);
+        var rect2 = new Rect(target.x + 30f + 8f, target.y, 30f, 30f);
+        if (ExtraWidgets.ButtonImage(rect2, Assets.Extract, false, TipCreateNew,
+                rect2.ContractedBy(4f)))
+        {
+            Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
+            {
+                new FloatMenuOption("ModSwitch.CreateNew".Translate(), delegate
+                {
+                    Find.WindowStack.Add(new Dialog_SetText(delegate(string s)
+                    {
+                        var item = ModSet.FromCurrent(s, this);
+                        Sets.Add(item);
+                        Mod.WriteSettings();
+                    }, "ModSwitch.Create.DefaultName".Translate()));
+                }),
+                new FloatMenuOption("ModSwitch.OverwritExisting".Translate(), delegate
+                {
+                    if (Sets.Count > 0)
+                    {
+                        Find.WindowStack.Add(new FloatMenu(Sets.Select(ms => new FloatMenuOption(ms.Name,
+                            delegate
+                            {
+                                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                                {
+                                    OverwriteMod(ms);
                                 }
-                            },
-                            null
-                        ));
-                }
-
-                AddModSet(setname, loadableMods);
-            } catch (Exception ex) {
-                Log.Warning(string.Concat("Exception loading ", fi.FullName, ": ", ex));
-                Scribe.ForceStop();
-
-            }
+                                else
+                                {
+                                    Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
+                                        "ModSwitch.OverwritExisting.Confirm".Translate(ms.Name),
+                                        delegate { OverwriteMod(ms); }, true,
+                                        "ModSwitch.Confirmation.Title".Translate()));
+                                }
+                            })).ToList()));
+                    }
+                })
+            }));
         }
 
-        
-        private void ImportFromExport(FileInfo fi){
-            if (File.Exists(fi.FullName)) {
-                ModSet imported = null;
-
-                Scribe.loader.InitLoading(fi.FullName);
-                try {
-                    Scribe_Deep.Look(ref imported, ModSet.Export_ElementName, this);
-                } finally {
-                    Scribe.loader.FinalizeLoading();
-                }
-                if (imported == null)
-                    throw new InvalidOperationException("Error importing ModSet...");
-
-                int suffix = 0;
-                string name = imported.Name;
-                while (Sets.Any(ms => ms.Name == name))
-                    name = $"{imported.Name}_{++suffix}";
-                imported.Name = name;
-                Sets.Add(imported);
-
-                Mod.WriteSettings();
-            } else {
-                throw new FileNotFoundException();
-            }
+        var rect3 = new Rect(target.x + 76f, target.y, 30f, 30f);
+        if (_undo != null &&
+            ExtraWidgets.ButtonImage(rect3, Assets.Undo, false, TipUndo, rect3.ContractedBy(4f)))
+        {
+            _undo.Apply(page);
+            _undo = null;
         }
 
+        var rect4 = new Rect(320f, target.y, 30f, 30f);
+        if (ExtraWidgets.ButtonImage(rect4, Assets.Settings, false, TipSettings,
+                rect4.ContractedBy(4f)))
+        {
+            Find.WindowStack.Add(new Dialog_ModsSettings_Custom(Mod));
+        }
+    }
 
-        private void ImportModListBackup(bool overwrite = false) {
-            if (overwrite) {
-                Attributes.Clear();
-                Sets.Clear();
-            }
-
-            string parent = Path.Combine(GenFilePaths.SaveDataFolderPath, "ModListBackup");
-            Util.Trace($"Looking at {parent}");
-            IDictionary<int, string> names = null;
-            if (Directory.Exists(parent)) {
-                // grab hugslibs settings for MLB
-                string hugs = Path.Combine(GenFilePaths.SaveDataFolderPath, "HugsLib");
-                if (Directory.Exists(hugs)) {
-                    string settings = Path.Combine(hugs, "ModSettings.xml");
-                    if (File.Exists(settings)) {
-                        XmlDocument doc = new XmlDocument();
-                        doc.Load(settings);
-
-                        names = doc.DocumentElement.SelectSingleNode(@"//ModListBackup/StateNames/text()")?.Value.Split('|').Select((v, i) => new {v, i}).ToDictionary(t => t.i + 1, t => t.v);
-                    }
-                }
-
-                // import configs
-                string[] existing = Directory.GetFiles(parent, "*.rws");
-
-                if (names == null)
-                    names = new Dictionary<int, string>();
-
-
-                foreach (string mlbSet in existing) {
-                    Util.Trace($"Reading {mlbSet}");
-
-                    XmlDocument doc = new XmlDocument();
-                    doc.Load(mlbSet);
-                    try {
-                        string name = Path.GetFileNameWithoutExtension(mlbSet);
-                        int idx;
-                        string backupName = null;
-
-                        if (int.TryParse(Path.GetFileNameWithoutExtension(name), out idx))
-                            names.TryGetValue(idx, out backupName);
-                        if (string.IsNullOrEmpty(backupName))
-                            backupName = $"MLB '{name}'";
-
-                        ModSet set = new ModSet(this) {
-                                                          Name = backupName,
-                                                          // ReSharper disable PossibleNullReferenceException
-                                                          // ReSharper disable AssignNullToNotNullAttribute
-                                                          Mods = doc.DocumentElement.SelectNodes(@"//activeMods/li/text()").Cast<XmlNode>().Select(n => n.Value).ToList(),
-                                                          BuildNumber = int.Parse(doc.DocumentElement.SelectSingleNode(@"//buildNumber/text()").Value, CultureInfo.InvariantCulture)
-                                                          // ReSharper restore AssignNullToNotNullAttribute
-                                                          // ReSharper restore PossibleNullReferenceException
-                                                      };
-                        Util.Trace($"Imported {set.Name}: {set}");
-                        Sets.Add(set);
-                    } catch (Exception e) {
-                        Util.Error(e);
-                    }
-                }
-
-                Util.Trace($"Importing settings");
-
-                // import custom settings
-                string mods = Path.Combine(parent, "Mod");
-                if (Directory.Exists(mods))
-                    foreach (string mod in Directory.GetDirectories(mods)) {
-                        Util.Trace($"Settings {mod}");
-                        string settings = Path.Combine(mod, "Settings.xml");
-                        if (File.Exists(settings)) {
-                            XmlDocument doc = new XmlDocument();
-                            doc.Load(settings);
-
-                            ModAttributes attr;
-                            string key = Path.GetFileName(mod);
-                            if (!Attributes.TryGetValue(key, out attr))
-                                Attributes.Add(attr = new ModAttributes {Key = key});
-                            XmlNode textColor = doc.DocumentElement.SelectSingleNode(@"//textColor");
-                            try {
-                                MLBAttributes mlb = new MLBAttributes {
-                                                                          altName = doc.DocumentElement.SelectSingleNode(@"//altName/text()")?.Value,
-                                                                          installName = doc.DocumentElement.SelectSingleNode(@"//installName/text()")?.Value,
-                                                                          color = textColor != null
-                                                                              ? new Color(
-                                                                                  float.Parse(textColor.SelectSingleNode("r/text()")?.Value ?? "1", CultureInfo.InvariantCulture),
-                                                                                  float.Parse(textColor.SelectSingleNode("g/text()")?.Value ?? "1", CultureInfo.InvariantCulture),
-                                                                                  float.Parse(textColor.SelectSingleNode("b/text()")?.Value ?? "1", CultureInfo.InvariantCulture),
-                                                                                  float.Parse(textColor.SelectSingleNode("a/text()")?.Value ?? "1", CultureInfo.InvariantCulture)
-                                                                              )
-                                                                              : Color.white
-                                                                      };
-                                attr.attributes.Add(mlb);
-                                attr.Color = mlb.color;
-                            } catch (Exception e) {
-                                Util.Error(e);
+    public void DoWindowContents(Rect rect)
+    {
+        var listing_Standard = new Listing_Standard(GameFont.Small)
+        {
+            ColumnWidth = rect.width
+        };
+        listing_Standard.Begin(rect);
+        if (Widgets.ButtonText(listing_Standard.GetRect(30f).LeftHalf(), "ModSwitch.Import".Translate(),
+                true, false))
+        {
+            Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
+            {
+                new FloatMenuOption("ModSwitch.Import.OpenFolder".Translate(), delegate
+                {
+                    MS_GenFilePaths.EnsureExportFolderExists();
+                    Process.Start(MS_GenFilePaths.ModSwitchFolderPath);
+                }),
+                new FloatMenuOption("ModSwitch.Import.FromFile".Translate(), delegate
+                {
+                    var list = MS_GenFilePaths.AllExports.Select(fi =>
+                        new FloatMenuOption(fi.Name, delegate
+                        {
+                            try
+                            {
+                                ImportFromExport(fi);
                             }
-                        }
+                            catch (Exception e)
+                            {
+                                Util.DisplayError(e);
+                            }
+                        })).ToList();
+                    if (list.Count != 0)
+                    {
+                        Find.WindowStack.Add(new FloatMenu(list));
                     }
+                }),
+                new FloatMenuOption("ModSwitch.Import.Savegame".Translate(),
+                    delegate
+                    {
+                        Find.WindowStack.Add(new FloatMenu(GenFilePaths.AllSavedGameFiles.Select(fi =>
+                            new FloatMenuOption(fi.Name, delegate { ImportFromSave(fi); })).ToList()));
+                    }),
+                new FloatMenuOption("ModListBackup", delegate
+                {
+                    Find.WindowStack.Add(new Dialog_MessageBox("ModSwitch.Import.Text".Translate(),
+                        "ModSwitch.Import.Choice.Replace".Translate(),
+                        delegate { ImportModListBackup(true); },
+                        "ModSwitch.Import.Choice.Append".Translate(), delegate { ImportModListBackup(); },
+                        "ModSwitch.Confirmation.Title".Translate(), true)
+                    {
+                        absorbInputAroundWindow = true,
+                        closeOnClickedOutside = true,
+                        doCloseX = true
+                    });
+                })
+            }));
+        }
+
+        var rect2 = listing_Standard.GetRect(rect.height - listing_Standard.CurHeight);
+        var count = Sets.Count;
+        Widgets.BeginScrollView(rect2, ref _scrollPosition, new Rect(0f, 0f, rect2.width - 16f, count * 34f));
+        var vector = default(Vector2);
+        var reorderableGroup = ReorderableWidget.NewGroup(delegate(int from, int to)
+        {
+            ReorderModSet(from, to);
+            SoundDefOf.DragSlider.PlayOneShotOnCamera();
+        }, ReorderableDirection.Vertical);
+        foreach (var set in Sets)
+        {
+            vector.y += 4f;
+            var rect3 = new Rect(0f, vector.y, rect2.width - 16f, 30f);
+            set.DoWindowContents(rect3, reorderableGroup);
+            vector.y += 30f;
+        }
+
+        Widgets.EndScrollView();
+        listing_Standard.End();
+    }
+
+    public override void ExposeData()
+    {
+        Scribe_Collections.Look(ref Sets, false, "sets", LookMode.Undefined, this);
+        Scribe_Custom.Look<ModAttributesSet, ModAttributes>(ref Attributes, false, "attributes",
+            null, Array.Empty<object>());
+    }
+
+    private void ImportFromSave(FileInfo fi)
+    {
+        Scribe.loader.InitLoadingMetaHeaderOnly(fi.FullName);
+        try
+        {
+            ScribeMetaHeaderUtility.LoadGameDataHeader(ScribeMetaHeaderUtility.ScribeHeaderMode.Map,
+                false);
+            Scribe.loader.FinalizeLoading();
+            var num = 0;
+            var setname = fi.Name;
+            while (Sets.Any(ms => ms.Name == setname))
+            {
+                setname = $"{fi.Name}_{++num}";
             }
 
+            IEnumerable<(string, string, int)> candidates = ScribeMetaHeaderUtility.loadedModIdsList.Zip(
+                ScribeMetaHeaderUtility.loadedModNamesList, (id, name) => new
+                {
+                    Id = id,
+                    Name = name
+                }).Select((t, idx) => (t.Id, t.Name, idx));
+            Log.Message($"[ModSwitch]: Loaded version '{ScribeMetaHeaderUtility.loadedGameVersion}'");
+            var versionSpecificIdMapping =
+                Util.GetVersionSpecificIdMapping(VersionControl.VersionFromString(
+                    VersionControl.VersionStringWithoutRev(ScribeMetaHeaderUtility.loadedGameVersion)));
+            var tuple = ModConfigUtil.TryResolveModsList(candidates, versionSpecificIdMapping,
+                ((string Id, string Name, int Index) t) => t.Id,
+                (ModMetaData mmd, (string Id, string Name, int Index) t) => new
+                {
+                    Mod = mmd, t.Index
+                }, (ModMetaData _, (string Id, string Name, int Index) t) => new { t.Name, t.Id });
+            var item = tuple.Item1;
+            var unresolved = tuple.Item2;
+            var loadableMods = from t in item
+                orderby t.Index
+                select t.Mod;
+            var stringBuilder =
+                new StringBuilder("ModSwitch.MissingMods".Translate(Path.GetFileNameWithoutExtension(fi.Name)));
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine();
+            foreach (var anon in unresolved)
+            {
+                stringBuilder.AppendLine($" - {anon.Name} ({anon.Id})");
+            }
+
+            if (unresolved.Any())
+            {
+                Find.WindowStack.Add(new Dialog_MissingMods(stringBuilder.ToString(),
+                    delegate { AddModSet(setname, loadableMods); }, delegate
+                    {
+                        foreach (var anon2 in unresolved)
+                        {
+                            Process.Start(Util.BuildWorkshopUrl(anon2.Name, anon2.Id));
+                        }
+                    }, null));
+            }
+
+            AddModSet(setname, loadableMods);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"Exception loading {fi.FullName}: {ex}");
+            Scribe.ForceStop();
+        }
+
+        void AddModSet(string name, IEnumerable<ModMetaData> mods)
+        {
+            Sets.Add(new ModSet(this)
+            {
+                Name = name,
+                BuildNumber =
+                    new Version(VersionControl.VersionStringWithoutRev(ScribeMetaHeaderUtility.loadedGameVersion))
+                        .Build,
+                Mods = new List<string>(mods.Select(mmd => mmd.FolderName))
+            });
             Mod.WriteSettings();
         }
+    }
 
-        private void OverwriteMod(ModSet ms) {
-            int idx = Sets.IndexOf(ms);
-            Sets[idx] = ModSet.FromCurrent(ms.Name, this);
-            Mod.WriteSettings();
+    private void ImportFromExport(FileInfo fi)
+    {
+        if (!File.Exists(fi.FullName))
+        {
+            throw new FileNotFoundException();
         }
 
-        private void ReorderModSet(int from, int to) {
-            if (from == to)
-                return;
-
-            ModSet item = Sets[from];
-            Sets.RemoveAt(from);
-            Sets.Insert(to, item);
+        ModSet target = null;
+        Scribe.loader.InitLoading(fi.FullName);
+        try
+        {
+            Scribe_Deep.Look(ref target, "ModSet", this);
         }
+        finally
+        {
+            Scribe.loader.FinalizeLoading();
+        }
+
+        if (target == null)
+        {
+            throw new InvalidOperationException("Error importing ModSet...");
+        }
+
+        var num = 0;
+        var name = target.Name;
+        while (Sets.Any(ms => ms.Name == name))
+        {
+            name = $"{target.Name}_{++num}";
+        }
+
+        target.Name = name;
+        Sets.Add(target);
+        Mod.WriteSettings();
+    }
+
+    private void ImportModListBackup(bool overwrite = false)
+    {
+        if (overwrite)
+        {
+            Attributes.Clear();
+            Sets.Clear();
+        }
+
+        var text = Path.Combine(GenFilePaths.SaveDataFolderPath, "ModListBackup");
+        IDictionary<int, string> dictionary = null;
+        if (Directory.Exists(text))
+        {
+            var text2 = Path.Combine(GenFilePaths.SaveDataFolderPath, "HugsLib");
+            if (Directory.Exists(text2))
+            {
+                var text3 = Path.Combine(text2, "ModSettings.xml");
+                if (File.Exists(text3))
+                {
+                    var xmlDocument = new XmlDocument();
+                    xmlDocument.Load(text3);
+                    dictionary = xmlDocument.DocumentElement?.SelectSingleNode("//ModListBackup/StateNames/text()")
+                        ?.Value.Split('|').Select((v, i) => new { v, i })
+                        .ToDictionary(t => t.i + 1, t => t.v);
+                }
+            }
+
+            var files = Directory.GetFiles(text, "*.rws");
+            if (dictionary == null)
+            {
+                dictionary = new Dictionary<int, string>();
+            }
+
+            var array = files;
+            foreach (var text4 in array)
+            {
+                var xmlDocument2 = new XmlDocument();
+                xmlDocument2.Load(text4);
+                try
+                {
+                    var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(text4);
+                    string value = null;
+                    if (int.TryParse(Path.GetFileNameWithoutExtension(fileNameWithoutExtension), out var result))
+                    {
+                        dictionary.TryGetValue(result, out value);
+                    }
+
+                    if (string.IsNullOrEmpty(value))
+                    {
+                        value = $"MLB '{fileNameWithoutExtension}'";
+                    }
+
+                    var item = new ModSet(this)
+                    {
+                        Name = value,
+                        Mods = (from XmlNode n in xmlDocument2.DocumentElement?.SelectNodes("//activeMods/li/text()")
+                            select n.Value).ToList(),
+                        BuildNumber =
+                            int.Parse(
+                                xmlDocument2.DocumentElement?.SelectSingleNode("//buildNumber/text()")?.Value ?? "0",
+                                CultureInfo.InvariantCulture)
+                    };
+                    Sets.Add(item);
+                }
+                catch (Exception e)
+                {
+                    Util.Error(e);
+                }
+            }
+
+            var path = Path.Combine(text, "Mod");
+            if (Directory.Exists(path))
+            {
+                array = Directory.GetDirectories(path);
+                foreach (var text5 in array)
+                {
+                    var text6 = Path.Combine(text5, "Settings.xml");
+                    if (!File.Exists(text6))
+                    {
+                        continue;
+                    }
+
+                    var xmlDocument3 = new XmlDocument();
+                    xmlDocument3.Load(text6);
+                    var fileName = Path.GetFileName(text5);
+                    if (!Attributes.TryGetValue(fileName, out var item2))
+                    {
+                        var attributes = Attributes;
+                        var obj = new ModAttributes
+                        {
+                            Key = fileName
+                        };
+                        item2 = obj;
+                        attributes.Add(obj);
+                    }
+
+                    var xmlNode = xmlDocument3.DocumentElement.SelectSingleNode("//textColor");
+                    try
+                    {
+                        var mLBAttributes = new MLBAttributes
+                        {
+                            altName = xmlDocument3.DocumentElement.SelectSingleNode("//altName/text()")?.Value,
+                            installName = xmlDocument3.DocumentElement.SelectSingleNode("//installName/text()")
+                                ?.Value,
+                            color = xmlNode != null
+                                ? new Color(
+                                    float.Parse(xmlNode.SelectSingleNode("r/text()")?.Value ?? "1",
+                                        CultureInfo.InvariantCulture),
+                                    float.Parse(xmlNode.SelectSingleNode("g/text()")?.Value ?? "1",
+                                        CultureInfo.InvariantCulture),
+                                    float.Parse(xmlNode.SelectSingleNode("b/text()")?.Value ?? "1",
+                                        CultureInfo.InvariantCulture),
+                                    float.Parse(xmlNode.SelectSingleNode("a/text()")?.Value ?? "1",
+                                        CultureInfo.InvariantCulture))
+                                : Color.white
+                        };
+                        item2.attributes.Add(mLBAttributes);
+                        item2.Color = mLBAttributes.color;
+                    }
+                    catch (Exception e2)
+                    {
+                        Util.Error(e2);
+                    }
+                }
+            }
+        }
+
+        Mod.WriteSettings();
+    }
+
+    private void OverwriteMod(ModSet ms)
+    {
+        var index = Sets.IndexOf(ms);
+        Sets[index] = ModSet.FromCurrent(ms.Name, this);
+        Mod.WriteSettings();
+    }
+
+    public void ReorderModSet(int from, int to)
+    {
+        if (from == to)
+        {
+            return;
+        }
+
+        var item = Sets[from];
+        Sets.RemoveAt(from);
+        Sets.Insert(to, item);
     }
 }
