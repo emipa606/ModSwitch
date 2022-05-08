@@ -263,7 +263,7 @@ internal class Settings : ModSettings
         var count = Sets.Count;
         Widgets.BeginScrollView(rect2, ref _scrollPosition, new Rect(0f, 0f, rect2.width - 16f, count * 34f));
         var vector = default(Vector2);
-        var reorderableGroup = ReorderableWidget.NewGroup(delegate(int from, int to)
+        var reorderableGroup = ReorderableWidget.NewGroup_NewTemp(delegate(int from, int to)
         {
             ReorderModSet(from, to);
             SoundDefOf.DragSlider.PlayOneShotOnCamera();

@@ -41,15 +41,6 @@ Currently implemented features:
 
 See https://steamcommunity.com/workshop/filedetails/discussion/1139051045/1750150188482250790/]here on how to best get help with any erros.
 
-### Like my Mods?
-
-https://ko-fi.com/DoctorVanGogh]![Image](https://raw.githubusercontent.com/DoctorVanGogh/Shared/master/Sponsoring/Ko-Fi/buymeacoffee-28.png)
-
-
-### Looking for an older version?
-
-Get it from https://github.com/DoctorVanGogh/ModSwitch/releases]github
-
 ![Image](https://i.imgur.com/PwoNOj4.png)
 
 

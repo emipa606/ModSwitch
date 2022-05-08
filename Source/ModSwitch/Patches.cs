@@ -16,7 +16,7 @@ internal class Patches
 {
     public class ModsConfig_DoWindowContents
     {
-        [HarmonyPatch(typeof(Page_ModsConfig), "DoWindowContents")]
+        [HarmonyPatch(typeof(Page_ModsConfig), nameof(Page_ModsConfig.DoWindowContents))]
         public class InjectSearchBox
         {
             public static Rect AllocateAndDrawSearchboxRect(Rect r)
@@ -40,12 +40,12 @@ internal class Patches
 
                 list.Insert(num - 4,
                     new CodeInstruction(OpCodes.Call,
-                        AccessTools.Method(typeof(InjectSearchBox), "AllocateAndDrawSearchboxRect")));
+                        AccessTools.Method(typeof(InjectSearchBox), nameof(AllocateAndDrawSearchboxRect))));
                 return list;
             }
         }
 
-        [HarmonyPatch(typeof(Page_ModsConfig), "DoWindowContents")]
+        [HarmonyPatch(typeof(Page_ModsConfig), nameof(Page_ModsConfig.DoWindowContents))]
         public class DrawOperationButtons
         {
             public static void Postfix(Page_ModsConfig __instance, Rect rect)
@@ -56,13 +56,13 @@ internal class Patches
         }
     }
 
-    [HarmonyPatch(typeof(Page_ModsConfig), "PreOpen")]
+    [HarmonyPatch(typeof(Page_ModsConfig), nameof(Page_ModsConfig.PreOpen))]
     public class Page_ModsConfig_PreOpen
     {
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instr)
         {
             var list = new List<CodeInstruction>(instr);
-            var miTarget = AccessTools.Method(typeof(ModLister), "RebuildModList");
+            var miTarget = AccessTools.Method(typeof(ModLister), nameof(ModLister.RebuildModList));
             var num = list.FirstIndexOf(ci => ci.opcode == OpCodes.Call && ci.operand == miTarget);
             if (num == -1)
             {
@@ -70,7 +70,8 @@ internal class Patches
                 return list;
             }
 
-            list[num].operand = AccessTools.Method(typeof(ModsConfigUI.Helpers), "ForceSteamWorkshopRequery");
+            list[num].operand = AccessTools.Method(typeof(ModsConfigUI.Helpers),
+                nameof(ModsConfigUI.Helpers.ForceSteamWorkshopRequery));
             return list;
         }
     }
@@ -132,10 +133,12 @@ internal class Patches
                     new CodeInstruction(OpCodes.Ldloc, operand),
                     new CodeInstruction(OpCodes.Call, ModsConfigUI.miGuiSetContentColor),
                     new CodeInstruction(OpCodes.Ldc_I4_1),
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Input), "GetMouseButtonUp")),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.Method(typeof(Input), nameof(Input.GetMouseButtonUp))),
                     new CodeInstruction(OpCodes.Brfalse, label),
                     new CodeInstruction(OpCodes.Ldarg_2),
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(ModsConfigUI), "DoContextMenu")),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.Method(typeof(ModsConfigUI), nameof(ModsConfigUI.DoContextMenu))),
                     new CodeInstruction(OpCodes.Br, lblBlockEnd)
                 });
                 list[num + 1].operand = label2;
@@ -143,7 +146,7 @@ internal class Patches
                 {
                     new CodeInstruction(OpCodes.Ldarg_2),
                     new CodeInstruction(OpCodes.Call,
-                        AccessTools.Method(typeof(ModsConfigUI.Helpers), "SetGUIColorMod")),
+                        AccessTools.Method(typeof(ModsConfigUI.Helpers), nameof(ModsConfigUI.Helpers.SetGUIColorMod))),
                     new CodeInstruction(OpCodes.Stloc, operand)
                 });
                 return list;
@@ -156,7 +159,8 @@ internal class Patches
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instr)
             {
                 var list = new List<CodeInstruction>(instr);
-                var miTarget = AccessTools.Method(typeof(ContentSourceUtility), "DrawContentSource");
+                var miTarget = AccessTools.Method(typeof(ContentSourceUtility),
+                    nameof(ContentSourceUtility.DrawContentSource));
                 var num = list.FirstIndexOf(ci => ci.opcode == OpCodes.Call && ci.operand == miTarget);
                 if (num == -1)
                 {
@@ -164,17 +168,17 @@ internal class Patches
                     return list;
                 }
 
-                list[num].operand = AccessTools.Method(typeof(ModsConfigUI), "DrawContentSource");
+                list[num].operand = AccessTools.Method(typeof(ModsConfigUI), nameof(ModsConfigUI.DrawContentSource));
                 list.Insert(num, new CodeInstruction(OpCodes.Ldarg_2));
                 return list;
             }
         }
     }
 
-    [HarmonyPatch(typeof(Page_ModsConfig), "PostClose")]
+    [HarmonyPatch(typeof(Page_ModsConfig), nameof(Page_ModsConfig.PostClose))]
     public class Page_ModsConfig_PostClose
     {
-        private static readonly MethodInfo mi = typeof(ModsConfig).GetMethod("RestartFromChangedMods");
+        private static readonly MethodInfo mi = typeof(ModsConfig).GetMethod(nameof(ModsConfig.RestartFromChangedMods));
 
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
@@ -182,7 +186,7 @@ internal class Patches
             {
                 if (instruction.opcode == OpCodes.Call && instruction.operand == mi)
                 {
-                    instruction.operand = typeof(ModsConfigUI).GetMethod("OnModsChanged");
+                    instruction.operand = typeof(ModsConfigUI).GetMethod(nameof(ModsConfigUI.OnModsChanged));
                 }
 
                 yield return instruction;
@@ -190,7 +194,23 @@ internal class Patches
         }
     }
 
-    [HarmonyPatch(typeof(ModsConfig), "Save")]
+    [HarmonyPatch(typeof(Page_ModsConfig), nameof(Page_ModsConfig.SelectMod))]
+    public class Page_ModsConfig_SelectMod
+    {
+        public static void Postfix(ref Vector2 ___modListScrollPosition, List<ModMetaData> ___modsInListOrderCached,
+            ModMetaData mod)
+        {
+            var modOrder = ___modsInListOrderCached.IndexOf(mod);
+            if (modOrder == -1)
+            {
+                return;
+            }
+
+            ___modListScrollPosition.y = modOrder * 26f;
+        }
+    }
+
+    [HarmonyPatch(typeof(ModsConfig), nameof(ModsConfig.Save))]
     public class ModsConfig_Save
     {
         public static void Postfix()
@@ -199,14 +219,14 @@ internal class Patches
         }
     }
 
-    [HarmonyPatch(typeof(WorkshopItem), "MakeFrom")]
+    [HarmonyPatch(typeof(WorkshopItem), nameof(WorkshopItem.MakeFrom))]
     public class WorkshopItem_MakeFrom
     {
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instr)
         {
             var list = new List<CodeInstruction>(instr);
             var ciTarget = AccessTools.Constructor(typeof(WorkshopItem_Mod));
-            var miAnchor = AccessTools.DeclaredMethod(typeof(SteamUGC), "GetItemInstallInfo");
+            var miAnchor = AccessTools.DeclaredMethod(typeof(SteamUGC), nameof(SteamUGC.GetItemInstallInfo));
             var num = list.FirstIndexOf(ci => ci.opcode == OpCodes.Newobj && ci.operand == ciTarget);
             if (-1 == num)
             {
@@ -229,7 +249,8 @@ internal class Patches
                 {
                     new CodeInstruction(OpCodes.Ldarg_0),
                     new CodeInstruction(OpCodes.Ldloc, localBuilder),
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(ModsConfigUI.Helpers), "UpdateSteamTS"))
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.Method(typeof(ModsConfigUI.Helpers), nameof(ModsConfigUI.Helpers.UpdateSteamTS)))
                 });
                 return list;
             }
@@ -239,7 +260,7 @@ internal class Patches
         }
     }
 
-    [HarmonyPatch(typeof(MainMenuDrawer), "DoMainMenuControls")]
+    [HarmonyPatch(typeof(MainMenuDrawer), nameof(MainMenuDrawer.DoMainMenuControls))]
     public class MainMenuDrawer_DoMainMenuControls
     {
         private static readonly ConstructorInfo ciNewListableOption = AccessTools.Constructor(typeof(ListableOption),
@@ -251,7 +272,7 @@ internal class Patches
             });
 
         private static readonly MethodInfo miWrappedMenuOption =
-            AccessTools.Method(typeof(ModsConfigUI), "WrapMainMenuOption");
+            AccessTools.Method(typeof(ModsConfigUI), nameof(ModsConfigUI.WrapMainMenuOption));
 
         private static bool InjectDeferedRestartHint(List<CodeInstruction> instructions, ILGenerator ilGen,
             string anchor)
