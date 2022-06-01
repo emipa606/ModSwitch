@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using ColourPicker;
 using HarmonyLib;
 using RimWorld;
 using Steamworks;
@@ -293,8 +294,24 @@ public static class ModsConfigUI
             }
         }
 
+        var currentColour = Color.white;
+        var color = LoadedModManager.GetMod<ModSwitch>().CustomSettings.Attributes[mod].Color;
+        if (color != null)
+        {
+            currentColour = (Color)color;
+        }
+
         list.Add(new FloatMenuOption("ModSwitch.Color".Translate(),
-            delegate { Find.WindowStack.Add(new FloatMenu(CreateColorizationOptions(mod))); }));
+            delegate
+            {
+                Find.WindowStack.Add(new Dialog_ColourPicker(currentColour,
+                    newColour =>
+                    {
+                        LoadedModManager.GetMod<ModSwitch>().CustomSettings.Attributes[mod].Color = newColour;
+                    }));
+                //Find.WindowStack.Add(new FloatMenu(CreateColorizationOptions(mod)));
+            }));
+
         Find.WindowStack.Add(new FloatMenu(list));
     }
 

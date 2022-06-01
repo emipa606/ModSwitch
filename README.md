@@ -5,6 +5,8 @@
 Update of DoctorVanGogh, Aviuzs mod
 https://steamcommunity.com/sharedfiles/filedetails/?id=1139051045
 
+- When clicking on a mod-requirement, the modlist will now scroll to show that mod
+
 ![Image](https://i.imgur.com/pufA0kM.png)
 
 	
@@ -51,5 +53,6 @@ See https://steamcommunity.com/workshop/filedetails/discussion/1139051045/175015
 -  For best support, please use the Discord-channel for error-reporting.
 -  Do not report errors by making a discussion-thread, I get no notification of that.
 -  If you have the solution for a problem, please post it to the GitHub repository.
+
 
 

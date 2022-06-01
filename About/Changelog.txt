@@ -1,5 +1,8 @@
 # Changelog for ModSwitch
 
+1.3.3 - Added a colorpicker made by Fluffy, [url=https://github.com/fluffy-mods/ColourPicker]ColourPicker[/url]
+
+
 1.3.2 - When clicking on a mod-requirement the modlist now scrolls to the clicked mod
 
 
